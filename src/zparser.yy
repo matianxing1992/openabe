@@ -3,6 +3,7 @@
 %{ /*** C/C++ Declarations ***/
 
 #include <stdio.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -56,6 +57,10 @@
 
 /* verbose error messages */
 %error-verbose
+
+%code requires {
+#include <cstdint>
+}
 
  /*** BEGIN EXAMPLE - Change the example grammar's tokens below ***/
 

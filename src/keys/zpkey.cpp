@@ -69,7 +69,11 @@ OpenABEPKey::OpenABEPKey(const EC_KEY *ec_key, bool isPrivate, EC_GROUP *group)
   if (this->isPrivate) {
     // set as the EC_KEY (private key) of the pkey
     // no need to copy since it'll be owned by the pkey
-    EVP_PKEY_assign_EC_KEY(this->pkey, ec_key);
+    // OpenSSL's EVP_PKEY_assign_EC_KEY API takes ownership of the key and
+    // therefore still exposes a non-const parameter.  OpenABE historically
+    // declared this constructor argument const, although this branch passes
+    // ownership to EVP_PKEY.  Preserve that ownership contract explicitly.
+    EVP_PKEY_assign_EC_KEY(this->pkey, const_cast<EC_KEY *>(ec_key));
   } else {
     ASSERT_NOTNULL(group);
     // create a new EC_GROUP from the group of eckey, this

@@ -34,6 +34,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <cassert>
+#include <vector>
+#include <openssl/hmac.h>
 #include <openabe/zsymcrypto.h>
 
 using namespace std;
@@ -42,12 +44,79 @@ namespace oabe {
 
 namespace crypto {
 
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+// OpenSSL's EVP HKDF implementation was added in 1.1.1.  Keep the
+// OpenABE API available with OpenSSL 1.0.x by implementing RFC 5869 with
+// the HMAC interface, which is present in both OpenSSL 1.0.x and 3.x.
+static bool OpenABEComputeHKDFLegacy(const OpenABEByteString& key,
+                                     const OpenABEByteString& salt,
+                                     const OpenABEByteString& info,
+                                     size_t key_len,
+                                     std::vector<uint8_t>& output_key) {
+  const EVP_MD* md = EVP_sha256();
+  const unsigned int hash_len = EVP_MD_size(md);
+  const size_t block_count = (key_len + hash_len - 1) / hash_len;
+
+  // RFC 5869: an omitted salt is a string of HashLen zero octets.
+  std::vector<uint8_t> zero_salt(hash_len, 0);
+  const unsigned char* salt_ptr = salt.empty()
+      ? zero_salt.data() : salt.getInternalPtr();
+  const int salt_len = static_cast<int>(salt.empty() ? zero_salt.size()
+                                                     : salt.size());
+  const unsigned char* key_ptr = key.empty() ? NULL : key.getInternalPtr();
+
+  unsigned char prk[EVP_MAX_MD_SIZE];
+  unsigned int prk_len = 0;
+  if (HMAC(md, salt_ptr, salt_len, key_ptr, static_cast<int>(key.size()),
+           prk, &prk_len) == NULL) {
+    return false;
+  }
+
+  if (block_count > 255) {
+    return false;
+  }
+
+  output_key.clear();
+  output_key.reserve(key_len);
+  std::vector<uint8_t> previous;
+  for (size_t block = 1; block <= block_count; ++block) {
+    std::vector<uint8_t> input(previous);
+    input.insert(input.end(), info.begin(), info.end());
+    input.push_back(static_cast<uint8_t>(block));
+
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digest_len = 0;
+    if (HMAC(md, prk, prk_len,
+             input.empty() ? NULL : input.data(), static_cast<int>(input.size()),
+             digest, &digest_len) == NULL) {
+      return false;
+    }
+    previous.assign(digest, digest + digest_len);
+    const size_t remaining = key_len - output_key.size();
+    const size_t take = std::min(remaining, static_cast<size_t>(digest_len));
+    output_key.insert(output_key.end(), digest, digest + take);
+  }
+  return output_key.size() == key_len;
+}
+#endif
+
 /********************************************************************************
  * Implementation of the OpenABESymKeyAuthEnc class
  ********************************************************************************/
 
 void OpenABEComputeHKDF(OpenABEByteString& key, OpenABEByteString& salt,
                         OpenABEByteString& info, size_t key_len, OpenABEByteString& output_key) {
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+  std::vector<uint8_t> legacy_output;
+  if (!OpenABEComputeHKDFLegacy(key, salt, info, key_len, legacy_output)) {
+    throw oabe::CryptoException("OpenABEComputeHKDF");
+  }
+  output_key.clear();
+  if (!legacy_output.empty()) {
+    output_key.appendArray(legacy_output.data(), legacy_output.size());
+  }
+  return;
+#else
   EVP_PKEY_CTX *kctx = NULL;
   string error_msg = "";
   // check if key is at least a certain size > 0, < 1024
@@ -100,6 +169,7 @@ out:
   if (error_msg != "") {
     throw oabe::CryptoException(error_msg);
   }
+#endif
 }
 
 void generateSymmetricKey(std::string& key, uint32_t keyLen)

@@ -41,6 +41,7 @@
 #include <set>
 #include <map>
 #include <iomanip>
+#include <cstdint>
 #include <sstream>
 
 #define COLON     ':'

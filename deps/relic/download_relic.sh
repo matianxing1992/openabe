@@ -13,7 +13,7 @@ git clone ${LINK} ${RELIC}.git
 cd ${RELIC}.git
 git reset --hard ${COMMIT}
 
-if [[ ! -f ${RELIC}.${FORMAT} ]]; then
+if [[ ! -f ../${RELIC}.${FORMAT} ]]; then
    echo "Create archive of source (without git files)"
    git archive --output ../${RELIC}.test.${FORMAT} HEAD 
 
@@ -30,6 +30,18 @@ if [[ ! -f ${RELIC}.${FORMAT} ]]; then
    grep -rl "rsa_t" ./ | xargs sed --in-place 's/rsa_t/rlc_rsa_t/g'
    grep -rl "rsa_st" ./ | xargs sed --in-place 's/rsa_st/rlc_rsa_st/g'
    sed --in-place -e '/^#define ep2_mul /d' include/relic_label.h
+
+   # RELIC 0.5.0 vendors the BLAKE2 reference header with packed structs whose
+   # state types are also explicitly 64-byte aligned. Newer GCC rejects arrays
+   # of those aligned types inside packed structs with:
+   #   size of array element is not a multiple of its alignment
+   # The BLAKE2 code here does not require those state typedefs to be over-
+   # aligned for OpenABE, so remove the explicit alignment while preserving
+   # the packed parameter structs.
+   sed --in-place \
+       -e 's/RLC_ALIGNME( 64 ) typedef struct __blake2s_state/typedef struct __blake2s_state/' \
+       -e 's/RLC_ALIGNME( 64 ) typedef struct __blake2b_state/typedef struct __blake2b_state/' \
+       src/md/blake2.h
 
    cd ..
    tar -czf ${RELIC}.${FORMAT} ${RELIC}

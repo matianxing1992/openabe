@@ -40,7 +40,10 @@
 #include <openssl/rand.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
 #include <openssl/kdf.h>
+#endif
 #include <openabe/zobject.h>
 #include <openabe/utils/zerror.h>
 #include <openabe/utils/zbytestring.h>

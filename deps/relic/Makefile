@@ -34,14 +34,14 @@ all: package relic-$(VERSION)/.built
 #-DLABEL="$(BP_LABEL)"
 relic-$(VERSION)/.built: relic-${VERSION}
 	cd $(BP_TMP); \
-	$(CMAKE_VARS) COMP="-O2 -funroll-loops -fomit-frame-pointer -Wno-incompatible-pointer-types -Wno-unused-function -Wno-implicit-function-declaration -Wno-incompatible-pointer-types-discards-qualifiers" cmake $(COMPILER_VARS) -DCMAKE_INSTALL_PREFIX:PATH=$(DEPS_INSTALL_ZROOT) -DOPSYS=$(RELIC_OS) -DARCH="ARM" -DWSIZE=32 \
+	$(CMAKE_VARS) COMP="-O2 -funroll-loops -fomit-frame-pointer -Wno-incompatible-pointer-types -Wno-unused-function -Wno-implicit-function-declaration -Wno-incompatible-pointer-types-discards-qualifiers" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $(COMPILER_VARS) -DCMAKE_INSTALL_PREFIX:PATH=$(DEPS_INSTALL_ZROOT) -DOPSYS=$(RELIC_OS) -DARCH="X64" -DWSIZE=64 \
 	-DWITH="BN;DV;FP;FPX;EP;EPX;PP;PC;MD" -DCHECK=off -DVERBS=off -DDEBUG=off -DMULTI=PTHREAD -DBENCH=0 -DTESTS=10 -DARITH=easy -DFP_PRIME=$(BN_CURVE) -DBN_PRECI=$(BN_CURVE) \
 	-DFP_QNRES=on -DEP_METHD="PROJC;LWNAF;COMBS;INTER" -DFP_METHD="BASIC;COMBA;COMBA;MONTY;LOWER;SLIDE" -DFPX_METHD="INTEG;INTEG;LAZYR" -DPP_METHD="LAZYR;OATEP" \
 	-DSEED="ZERO" -DRAND="CALL" ../$<; \
 	make && \
 	make install && \
 	cd ../$(EC_TMP); \
-	$(CMAKE_VARS) COMP="-O2 -funroll-loops -fomit-frame-pointer -Wno-unused-function -Wno-implicit-function-declaration -Wno-incompatible-pointer-types-discards-qualifiers" cmake $(COMPILER_VARS) -DCMAKE_INSTALL_PREFIX:PATH=$(DEPS_INSTALL_ZROOT) -DOPSYS=$(RELIC_OS) -DARCH="ARM" -DWSIZE=32 \
+	$(CMAKE_VARS) COMP="-O2 -funroll-loops -fomit-frame-pointer -Wno-unused-function -Wno-implicit-function-declaration -Wno-incompatible-pointer-types-discards-qualifiers" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $(COMPILER_VARS) -DCMAKE_INSTALL_PREFIX:PATH=$(DEPS_INSTALL_ZROOT) -DOPSYS=$(RELIC_OS) -DARCH="X64" -DWSIZE=64 \
 	-DWITH="BN;DV;FP;EP;MD" -DCHECK=off -DVERBS=off -DDEBUG=off -DMULTI=PTHREAD -DBENCH=0 -DTESTS=0 -DARITH=gmp -DFP_PRIME=$(EC_CURVE) \
 	-DFP_QNRES=off -DEP_METHD="PROJC;LWNAF;COMBS;INTER" -DFP_METHD="BASIC;COMBA;COMBA;MONTY;LOWER;SLIDE" -DFPX_METHD="INTEG;INTEG;LAZYR" -DPP_METHD="LAZYR;OATEP" \
 	-DSEED="ZERO" -DRAND="CALL" -DLABEL="$(EC_LABEL)" ../$<; \

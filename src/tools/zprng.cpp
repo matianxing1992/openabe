@@ -66,15 +66,17 @@ static void AesEvpBlockEncrypt(const EVP_CIPHER *cipher, const uint8_t* key,
     // cipher (e.g., 128-bits by default)
     EVP_EncryptInit_ex (ctx, cipher, NULL, (uint8_t*)key, NULL);
     
-    int olen = 512, tmp_len, out_len;
+    int olen = 512, tmp_len = 0, out_len = 0;
     uint8_t out[olen];
     memset(out, 0, olen);
     EVP_EncryptUpdate(ctx, out, &tmp_len, (uint8_t*) pl_ptr, (int)pl_len);
 
-    EVP_EncryptFinal_ex(ctx, out + tmp_len, &out_len);
-    // check that tmp_len == out_len
-    // copy back the output ciphertext
-    memcpy(ct_ptr, out, out_len);
+    ASSERT(EVP_EncryptFinal_ex(ctx, out + tmp_len, &out_len) == 1,
+           OpenABE_ERROR_ENCRYPTION_ERROR);
+    // With padding disabled, OpenSSL writes the full AES block during
+    // EVP_EncryptUpdate and returns zero bytes from EVP_EncryptFinal_ex.
+    // Copy both portions so this remains correct across OpenSSL versions.
+    memcpy(ct_ptr, out, tmp_len + out_len);
     // cleanup memory
     EVP_CIPHER_CTX_free(ctx);
 }

@@ -36,11 +36,13 @@
 #include <memory>
 #include <mutex>
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 #include <pthread.h>
+#include <stdexcept>
 
-#if defined(SSL_LIB_INIT)
+#if defined(SSL_LIB_INIT) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 
 #ifndef SSL_library_init
  #define SSL_library_init() OPENSSL_init_ssl(0, NULL)
@@ -55,6 +57,8 @@
 #endif
 
 using namespace std;
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 struct CRYPTO_dynlock_value {
     mutex the_mutex;
@@ -91,11 +95,14 @@ static void dynlockDestroy(struct CRYPTO_dynlock_value* lock,
     delete lock;
 }
 
+#endif
+
 void openSslInitialize() {
 #if defined(SSL_LIB_INIT)
     SSL_library_init();
     SSL_load_error_strings();
 #endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     // static locking
     mutexes.reset(new mutex[CRYPTO_num_locks()]);
     if (mutexes == nullptr) {
@@ -107,11 +114,13 @@ void openSslInitialize() {
     CRYPTO_set_dynlock_create_callback(dynlockCreate);
     CRYPTO_set_dynlock_lock_callback(dynlockLock);
     CRYPTO_set_dynlock_destroy_callback(dynlockDestroy);
+#endif
 
     RAND_poll();
 }
 
 void openSslCleanup() {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     // dynamic cleanup
     CRYPTO_set_dynlock_create_callback(nullptr);
     CRYPTO_set_dynlock_lock_callback(nullptr);
@@ -123,4 +132,5 @@ void openSslCleanup() {
     EVP_cleanup();
     CRYPTO_cleanup_all_ex_data();
     mutexes.reset();
+#endif
 }
